@@ -24,14 +24,29 @@
         "type": "TransferPokemon"
       },
       {
-        "type": "EvolveAll",
+        "type": "EvolvePokemon",
         "config": {
-          "evolve_speed": 20,
-          "use_lucky_egg": true
+            "evolve_all": "none",
+            "first_evolve_by": "cp",
+            "evolve_above_cp": 500,
+            "evolve_above_iv": 0.8,
+            "logic": "or",
+            "evolve_speed": 20,
+            "use_lucky_egg": false
         }
       },
       {
-        "type": "RecycleItems"
+        "type": "RecycleItems",
+        "config": {
+          "item_filter": {
+            "Pokeball":       { "keep" : 100 },
+            "Potion":         { "keep" : 10 },
+            "Super Potion":   { "keep" : 20 },
+            "Hyper Potion":   { "keep" : 30 },
+            "Revive":         { "keep" : 30 },
+            "Razz Berry":     { "keep" : 100 }
+          }
+        }
       },
       {
         "type": "CatchVisiblePokemon"
@@ -43,13 +58,21 @@
         "type": "SpinFort"
       },
       {
-        "type": "MoveToFort"
+        "type": "MoveToFort",
+        "config": {
+            "lure_attraction": true,
+            "lure_max_distance": 2000
+        }
       },
       {
-        "type": "FollowSpiral"
+        "type": "FollowSpiral",
+        "config": {
+          "diameter": 4,
+          "step_size": 70
+        }
       }
     ],
-    "max_steps": 5,
+    "map_object_cache_time": 5,
     "forts": {
       "avoid_circles": true,
       "max_circle_size": 50
@@ -64,16 +87,6 @@
     "location_cache": true,
     "distance_unit": "km",
     "reconnecting_timeout": 15,
-    "item_filter": {
-      "Pokeball":       { "keep" : 100 },
-      "Potion":         { "keep" : 10 },
-      "Super Potion":   { "keep" : 20 },
-      "Hyper Potion":   { "keep" : 30 },
-      "Revive":         { "keep" : 30 },
-      "Razz Berry":     { "keep" : 100 }
-    },
-    "evolve_all": "NONE",
-    "evolve_cp_min": 300,
     "evolve_captured": "NONE",
     "catch_randomize_reticle_factor": 1.0,
     "catch_randomize_spin_factor": 1.0,

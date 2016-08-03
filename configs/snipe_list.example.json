@@ -1,4 +1,5 @@
 {
+	"use_pokesnipers": false,
     "locations": [
         "Some Location",
         "Another Location"
