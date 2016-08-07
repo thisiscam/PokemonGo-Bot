@@ -22,7 +22,7 @@ class CatchLuredPokemon(BaseTask):
         details = fort_details(self.bot, fort_id=fort['id'],
                               latitude=fort['latitude'],
                               longitude=fort['longitude'])
-        fort_name = details.get('name', 'Unknown').encode('utf8', 'replace')
+        fort_name = details.get('name', 'Unknown')
 
         encounter_id = fort.get('lure_info', {}).get('encounter_id', None)
 
@@ -30,7 +30,7 @@ class CatchLuredPokemon(BaseTask):
             result = {
                 'encounter_id': encounter_id,
                 'fort_id': fort['id'],
-                'fort_name': fort_name,
++               'fort_name': u"{}".format(fort_name),
                 'latitude': fort['latitude'],
                 'longitude': fort['longitude']
             }
