@@ -10,11 +10,11 @@ import cfscrape
 
 from . import PokemonCatchWorker
 from base_task import BaseTask
-from pokemongo_bot import logger
 from utils import distance
 from expiringdict import ExpiringDict
 
 class SnipePokemon(BaseTask):
+    SUPPORTED_TASK_API_VERSION = 1
 
     def initialize(self):
         self.api = self.bot.api
@@ -23,38 +23,41 @@ class SnipePokemon(BaseTask):
         self.cached_positions = ExpiringDict(max_len=100, max_age_seconds=60 * 5)
         self.scraper = cfscrape.create_scraper()
         self.last_sniping_time = None
+        self.snipe_wait_interval = 120
 
     def work(self):
         if self.bot.config.snipe_list == None:
             return
-        if not self.last_sniping_time or (datetime.now() - self.last_sniping_time).total_seconds() > 60 * 2:
+        if not self.last_sniping_time or (datetime.now() - self.last_sniping_time).total_seconds() > self.snipe_wait_interval:
             self.start_sniping()
             self.last_sniping_time = datetime.now()
         else:
-            logger.log("{0} seconds till next snipping".format(60 * 2 - (datetime.now() - self.last_sniping_time).total_seconds()), "green")
+            self.logger.info("{0} seconds till next snipping".format(self.snipe_wait_interval - (datetime.now() - self.last_sniping_time).total_seconds()))
         
     def start_sniping(self):
         try:
-            logger.log('Reading snipping list.', 'green')
+            self.logger.info('Reading snipping list.')
             with open(self.bot.config.snipe_list, 'r+') as f:
                 try:
                     locations_json = json.load(f)
                 except ValueError:
-                    logger.log('Invalid json file', 'error')
+                    self.logger.error('Invalid json file')
                     return
+
+                self.snipe_wait_interval = locations_json.get("snipe_wait_interval", 120)
 
                 try:
                     locations = locations_json['locations']
                 except KeyError:
-                    logger.log('Failed to parse sniping locations', 'red')
+                    self.logger.error('Failed to parse sniping locations')
                     return
 
                 if locations_json.get("use_pokesnipers", False):
-                    logger.log("Asking for reports from Pokesnipers.com", "green")
+                    self.logger.info("Asking for reports from Pokesnipers.com")
                     try:
                         pokesnipers_responses = self.scraper.get("http://pokesnipers.com/api/v1/pokemon.json").json()["results"]
                     except ValueError as e:
-                        logger.log("Either Pokesnipers.com is down or they don't got any reports yet", "red")
+                        self.logger.warning("Either Pokesnipers.com is down or they don't got any reports yet")
                         pokesnipers_responses = []
                     pokesnipers_active_responses = []
                     for resp in pokesnipers_responses:
@@ -62,20 +65,20 @@ class SnipePokemon(BaseTask):
                         diff = (until - datetime.now(dateutil.tz.tzutc())).total_seconds()
                         if diff > 60 * 1: # focus on pokemon that will still be there after 1 mins 
                             pokesnipers_active_responses.append(resp)
-                    logger.log("Focusing to {0} number of coordinates, where {1} are spotted!".format(len(pokesnipers_active_responses), ", ".join([r['name'] for r in  pokesnipers_active_responses])), "green")
+                    self.logger.info("Focusing to {0} number of coordinates, where {1} are spotted!".format(len(pokesnipers_active_responses), ", ".join([r['name'] for r in  pokesnipers_active_responses])))
                     locations = locations + [r['coords'] for r in pokesnipers_active_responses]
 
                 if isinstance(locations, list) and len(locations):
                     while locations:
                         location = locations.pop(0)
-                        logger.log('Found location: ' + location, 'green')
+                        self.logger.info('Found location: ' + location)
                         location = location.replace(' ', '')
                         pattern = '^(\-?\d+(\.\d+)?),\s*(\-?\d+(\.\d+)?)$'
                         if not re.match(pattern, location):
-                            logger.log('Wrong format location!', 'red')
+                            self.logger.error('Wrong format location!')
                             continue
                         if location in self.cached_positions and self.cached_positions[location] == 0:
-                            logger.log("Ignoring coords {0} because it has been tried recently".format(location))
+                            self.logger.info("Ignoring coords {0} because it has been tried recently".format(location))
                             continue
                         elif location not in self.cached_positions:
                             self.cached_positions[location] = 2
@@ -86,16 +89,16 @@ class SnipePokemon(BaseTask):
                         try:
                             json.dump(locations_json, f)
                         except IOError:
-                            logger.log('Failed to remove location from snipe list.', 'red')
+                            self.logger.error('Failed to remove location from snipe list.')
                             return
                         except:
-                            logger.log('Unknown Error occurred attempting to remove location from snipe list.', 'red')
+                            self.logger.error('Unknown Error occurred attempting to remove location from snipe list.')
                         f.truncate()
                 else:
-                    logger.log('No locations to snipe!', 'yellow')
+                    self.logger.warning('No locations to snipe!')
                 return
         except IOError:
-            logger.log('Error reading sniping list!', 'red')
+            self.logger.error('Error reading sniping list!')
             return
 
     def snipe_pokemon(self, location, delay=2, firstTry=True, prevPosition=None):
@@ -107,7 +110,7 @@ class SnipePokemon(BaseTask):
             prevPosition = self.bot.position
 
             # Teleport to location
-            logger.log('Teleport to location..', 'green')
+            self.logger.info('Teleport to location..')
             latitude, longitude = location.split(',')
             self.api.set_position(float(latitude), float(longitude), 0)
 
@@ -115,7 +118,7 @@ class SnipePokemon(BaseTask):
 
         catch_pokemon = None
         if 'catchable_pokemons' in self.cell and len(self.cell['catchable_pokemons']) > 0:
-            logger.log('Something rustles nearby!')
+            self.logger.info('Something rustles nearby!')
             # Sort all by distance from current pos- eventually this should
             # build graph & A* it
             self.cell['catchable_pokemons'].sort(
@@ -139,7 +142,7 @@ class SnipePokemon(BaseTask):
                 pokemon_name = self.pokemon_list[int(pokemon_num)]['Name']
                 vip_name = self.bot.config.vips.get(pokemon_name)
                 if vip_name == {}:
-                    logger.log('Found a VIP pokemon: ' + pokemon_name, 'green')
+                    self.logger.info('Found a VIP pokemon: ' + pokemon_name)
                     catch_pokemon = pokemon
 
                     # if VIP pokemon is nearest, break loop
@@ -156,11 +159,11 @@ class SnipePokemon(BaseTask):
 
         if not catch_pokemon:
             if firstTry:
-                logger.log("No pokemon found! But sometimes this could be a bug, let's retry for once immediately", 'yellow')
+                self.logger.warning("No pokemon found! But sometimes this could be a bug, let's retry for once immediately")
                 time.sleep(delay * 2)
                 return self.snipe_pokemon(location, delay, firstTry=False, prevPosition=prevPosition)
             else:
-                logger.log("No pokemon found. Giving up", "yellow")
+                self.logger.warning("No pokemon found. Giving up")
                 # go back
                 self.api.set_position(*prevPosition)
                 time.sleep(delay)
@@ -169,12 +172,12 @@ class SnipePokemon(BaseTask):
 
         catchWorker = PokemonCatchWorker(catch_pokemon, self.bot)
 
-        logger.log('Encounter pokemon', 'green')
+        self.logger.info('Encounter pokemon')
         apiEncounterResponse = catchWorker.create_encounter_api_call()
 
         time.sleep(delay)
         # go back
-        logger.log('Teleport back previous location..', 'green')
+        self.logger.info('Teleport back previous location..')
         self.api.set_position(*prevPosition)
         # wait for go back
         time.sleep(delay)

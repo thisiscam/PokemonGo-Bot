@@ -32,7 +32,7 @@ class CatchLuredPokemon(BaseTask):
             result = {
                 'encounter_id': encounter_id,
                 'fort_id': fort['id'],
-+               'fort_name': u"{}".format(fort_name),
+                'fort_name': u"{}".format(fort_name),
                 'latitude': fort['latitude'],
                 'longitude': fort['longitude']
             }
