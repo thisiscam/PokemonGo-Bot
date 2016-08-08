@@ -9,7 +9,7 @@ from dateutil import parser as date_parser
 import cfscrape
 
 from . import PokemonCatchWorker
-from base_task import BaseTask
+from pokemongo_bot.base_task import BaseTask
 from utils import distance
 from expiringdict import ExpiringDict
 
