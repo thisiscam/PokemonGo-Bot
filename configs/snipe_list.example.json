@@ -3,5 +3,6 @@
     "locations": [
         "Some Location",
         "Another Location"
-    ]
+    ],
+    "snipe_wait_interval": 150
 }
